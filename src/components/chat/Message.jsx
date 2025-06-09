@@ -2,21 +2,25 @@ import React from "react";
 import MessageHeader from "./MessageHeader";
 import MarkdownRenderer from "./MarkdownRenderer";
 import ToolInfo from "./ToolInfo";
+import { Copy, Check } from "lucide-react";
 
 const Message = ({ message, index }) => {
   const isUser = message.type === "user";
   const isAI = message.type === "ai";
+  const isSystem = message.type === "system";
   
   // Parse the message to determine its type and stage
   let messageType = "default";
   let messageStage = null;
   let toolInfo = null;
+  let toolName = null;
   
-  if (isAI) {
+  if (isAI || isSystem) {
     try {
       const parsed = JSON.parse(message.text);
       messageType = parsed.type || "default";
       messageStage = parsed.stage;
+      toolName = parsed.tool;
       
       if (messageStage === "tool_call" || messageStage === "tool_result") {
         toolInfo = {
@@ -32,50 +36,70 @@ const Message = ({ message, index }) => {
     }
   }
 
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // ignore
+    }
+  };
+
   const getMessageStyles = () => {
     if (isUser) {
-      return "bg-gradient-to-br from-emerald-600 to-teal-700 text-white ml-12";
+      return "bg-gradient-to-br from-emerald-700/90 to-teal-800/90 text-white ml-12 shadow-xl border border-emerald-400/20 backdrop-blur-sm";
     }
     
+    if (isSystem) {
+      return "bg-gradient-to-br from-red-800/90 to-red-900/90 text-white mx-auto shadow-xl border border-red-400/20 backdrop-blur-sm";
+    }
+         
     switch (messageType) {
       case "welcome":
-        return "bg-gradient-to-br from-blue-600 to-indigo-700 text-white mr-12";
+        return "bg-gradient-to-br from-blue-800/90 to-indigo-900/90 text-white mr-12 shadow-xl border border-blue-400/20 backdrop-blur-sm";
       case "goodbye":
-        return "bg-gradient-to-br from-purple-600 to-pink-700 text-white mr-12";
+        return "bg-gradient-to-br from-purple-800/90 to-pink-900/90 text-white mr-12 shadow-xl border border-purple-400/20 backdrop-blur-sm";
       default:
         switch (messageStage) {
           case "tool_call":
-            return "bg-gradient-to-br from-amber-600 to-orange-700 text-white mr-12";
+            return "bg-gradient-to-br from-amber-800/90 to-orange-900/90 text-white mr-12 shadow-xl border border-amber-400/20 backdrop-blur-sm";
           case "tool_result":
-            return "bg-gradient-to-br from-cyan-600 to-teal-700 text-white mr-12";
+            return "bg-gradient-to-br from-cyan-800/90 to-teal-900/90 text-white mr-12 shadow-xl border border-cyan-400/20 backdrop-blur-sm";
           default:
-            return "bg-gradient-to-br from-gray-800 to-gray-900 text-white mr-12 border border-gray-600/50";
+            return "bg-gradient-to-br from-gray-800/90 to-gray-900/90 text-white mr-12 shadow-lg border border-gray-500/30 backdrop-blur-sm";
         }
     }
   };
-
+  
   const getTailStyles = () => {
     if (isUser) {
-      return "bg-gradient-to-br from-emerald-600 to-teal-700 -right-1";
+      return "bg-gradient-to-br from-emerald-400 to-teal-500 -right-1 shadow-lg border border-emerald-300/20";
     }
     
+    if (isSystem) {
+      return "bg-gradient-to-br from-red-400 to-red-500 -left-1 shadow-lg border border-red-300/20";
+    }
+         
     switch (messageType) {
       case "welcome":
-        return "bg-gradient-to-br from-blue-600 to-indigo-700 -left-1";
+        return "bg-gradient-to-br from-blue-500 to-purple-600 -left-1 shadow-lg border border-blue-400/20";
       case "goodbye":
-        return "bg-gradient-to-br from-purple-600 to-pink-700 -left-1";
+        return "bg-gradient-to-br from-purple-500 to-pink-600 -left-1 shadow-lg border border-purple-400/20";
       default:
         switch (messageStage) {
           case "tool_call":
-            return "bg-gradient-to-br from-amber-600 to-orange-700 -left-1";
+            return "bg-gradient-to-br from-amber-400 to-orange-500 -left-1 shadow-lg border border-amber-300/20";
           case "tool_result":
-            return "bg-gradient-to-br from-cyan-600 to-teal-700 -left-1";
+            return "bg-gradient-to-br from-cyan-400 to-teal-500 -left-1 shadow-lg border border-cyan-300/20";
           default:
-            return "bg-gradient-to-br from-gray-800 to-gray-900 -left-1 border-l border-t border-gray-600/50";
+            return "bg-gradient-to-br from-gray-600 to-gray-700 -left-1 shadow-lg border border-gray-500/30";
         }
     }
   };
-
+  
   const extractMessageContent = (message) => {
     if (isUser) return message.text;
     
@@ -95,15 +119,9 @@ const Message = ({ message, index }) => {
         case "final_response":
           return parsed.content;
         case "tool_call":
-          return `Using tool: ${parsed.tool}\n${parsed.content || ''}`;
+          return "";
         case "tool_result":
-          const toolInfo = [
-            `Tool: ${parsed.tool}`,
-            `Result: ${parsed.response}`,
-            parsed.execution_info ? `Details: ${parsed.execution_info}` : '',
-            parsed.execution_time_ms ? `Time: ${parsed.execution_time_ms}ms` : ''
-          ].filter(Boolean).join('\n');
-          return toolInfo;
+          return "";
         default:
           return parsed.content || parsed.message || parsed.text;
       }
@@ -114,11 +132,21 @@ const Message = ({ message, index }) => {
 
   return (
     <div
-      className={`flex ${isUser ? "justify-end" : "justify-start"} mb-6 group`}
+      className={`flex ${isUser ? "justify-end" : isSystem ? "justify-center" : "justify-start"} mb-6 group`}
     >
       <div
         className={`relative min-w-[280px] max-w-2xl lg:max-w-4xl xl:max-w-5xl px-6 py-4 rounded-md shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl ${getMessageStyles()}`}
       >
+        {/* Copy button for user/agent (not tool_call/tool_result) */}
+        {(!isAI || (isAI && messageStage !== "tool_call" && messageStage !== "tool_result")) && (
+          <button
+            onClick={() => handleCopy(extractMessageContent(message))}
+            className={`absolute top-2 right-2 z-10 p-1 rounded-full bg-black/10 hover:bg-black/30 transition-colors ${isUser ? "text-emerald-300 hover:text-white" : isSystem ? "text-red-300 hover:text-white" : "text-blue-300 hover:text-white"}`}
+            title="Copy message"
+          >
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+          </button>
+        )}
         {/* Message tail */}
         <div
           className={`absolute top-4 w-3 h-3 transform rotate-45 ${getTailStyles()}`}
@@ -126,8 +154,10 @@ const Message = ({ message, index }) => {
 
         <MessageHeader
           isUser={isUser}
-          messageType={messageType}
+          isSystem={isSystem}
+          messageType={messageType !== "default" ? messageType : null}
           messageStage={messageStage}
+          toolName={toolName}
         />
 
         <div className={`${isUser ? "font-medium" : ""} leading-relaxed`}>

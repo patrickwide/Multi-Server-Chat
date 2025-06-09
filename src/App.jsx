@@ -53,7 +53,7 @@ function App() {
         setConnectionStatus("connected");
         // Add welcome message to log
         setLog(prev => [...prev, { 
-          type: "ai", 
+          type: "system", 
           text: JSON.stringify({
             status: "success",
             type: "welcome",
@@ -80,7 +80,7 @@ function App() {
         
         // Add disconnect message to log
         setLog(prev => [...prev, { 
-          type: "ai", 
+          type: "system", 
           text: JSON.stringify({
             status: "error",
             type: "disconnect",
@@ -104,7 +104,7 @@ function App() {
         
         // Add error message to log
         setLog(prev => [...prev, { 
-          type: "ai", 
+          type: "system", 
           text: JSON.stringify({
             status: "error",
             type: "connection_error",
@@ -119,7 +119,7 @@ function App() {
       
       // Add error message to log
       setLog(prev => [...prev, { 
-        type: "ai", 
+        type: "system", 
         text: JSON.stringify({
           status: "error",
           type: "connection_error",
