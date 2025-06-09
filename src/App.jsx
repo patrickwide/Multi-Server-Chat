@@ -13,7 +13,7 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [showServerManager, setShowServerManager] = useState(false);
   const [servers, setServers] = useState([
-    { id: 1, name: "Local AI Server", url: "ws://localhost:8000/ws/ai" }
+    { id: 1, url: "ws://localhost:8000/ws/ai" }
   ]);
   const [activeServerId, setActiveServerId] = useState(null);
   
@@ -129,10 +129,9 @@ function App() {
     }
   };
 
-  const handleAddServer = ({ name, url }) => {
+  const handleAddServer = ({ url }) => {
     const newServer = {
       id: Date.now(),
-      name,
       url: url.startsWith('ws://') || url.startsWith('wss://') ? url : `ws://${url}`
     };
     setServers(prev => [...prev, newServer]);

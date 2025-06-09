@@ -2,16 +2,13 @@ import React, { useState } from "react";
 import { Plus, X, CheckCircle } from "lucide-react";
 
 const ServerManager = ({ servers, activeServerId, onAddServer, onRemoveServer, onSelectServer, onClose }) => {
-  const [newServerName, setNewServerName] = useState("");
   const [newServerUrl, setNewServerUrl] = useState("");
 
   const handleAddServer = () => {
-    if (newServerName.trim() && newServerUrl.trim()) {
+    if (newServerUrl.trim()) {
       onAddServer({
-        name: newServerName.trim(),
         url: newServerUrl.trim()
       });
-      setNewServerName("");
       setNewServerUrl("");
     }
   };
@@ -29,13 +26,6 @@ const ServerManager = ({ servers, activeServerId, onAddServer, onRemoveServer, o
         {/* Add New Server */}
         <div className="mb-6 p-4 bg-gray-700 rounded-lg">
           <h3 className="text-white font-semibold mb-3">Add New Server</h3>
-          <input
-            type="text"
-            placeholder="Server Name"
-            value={newServerName}
-            onChange={(e) => setNewServerName(e.target.value)}
-            className="w-full p-2 mb-2 bg-gray-600 text-white rounded border border-gray-500 focus:border-blue-500 focus:outline-none"
-          />
           <input
             type="text"
             placeholder="WebSocket URL (ws://localhost:8000/ws/ai)"
@@ -70,10 +60,7 @@ const ServerManager = ({ servers, activeServerId, onAddServer, onRemoveServer, o
                   onClick={() => onSelectServer(server.id)}
                 >
                   <div className="flex justify-between items-center">
-                    <div>
-                      <div className="text-white font-medium">{server.name}</div>
-                      <div className="text-gray-300 text-sm">{server.url}</div>
-                    </div>
+                    <div className="text-white font-medium">{server.url}</div>
                     <div className="flex items-center space-x-2">
                       {activeServerId === server.id && (
                         <CheckCircle size={16} className="text-green-400" />

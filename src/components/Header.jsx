@@ -28,7 +28,7 @@ const Header = ({ isConnected, connectionStatus, activeServer, onOpenServerManag
           {activeServer && (
             <div className="flex items-center mt-1">
               <span className="text-gray-300 text-sm mr-2">Connected to:</span>
-              <span className="text-blue-400 font-medium">{activeServer.name}</span>
+              <span className="text-blue-400 font-medium">{activeServer.url}</span>
             </div>
           )}
         </div>

@@ -109,17 +109,17 @@ const MessageInput = ({ msg, setMsg, sendMsg, isConnected, inputRef, connectionS
                 {connectionStatus === "connected" ? (
                   <span className="flex items-center gap-1 sm:gap-2">
                     <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse shadow-lg shadow-emerald-400/50" />
-                    Connected to {activeServer.name}
+                    Connected to {activeServer.url}
                   </span>
                 ) : connectionStatus === "connecting" ? (
                   <span className="flex items-center gap-1 sm:gap-2">
                     <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse shadow-lg shadow-amber-400/50" />
-                    Connecting to {activeServer.name}...
+                    Connecting to {activeServer.url}...
                   </span>
                 ) : (
                   <span className="flex items-center gap-1 sm:gap-2">
                     <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse shadow-lg shadow-red-400/50" />
-                    Disconnected from {activeServer.name}
+                    Disconnected from {activeServer.url}
                   </span>
                 )}
               </div>
