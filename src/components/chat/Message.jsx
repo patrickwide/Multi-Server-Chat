@@ -54,6 +54,10 @@ const Message = ({ message, index }) => {
     }
     
     if (isSystem) {
+      const parsed = JSON.parse(message.text);
+      if (parsed.status === "success") {
+        return "bg-gradient-to-br from-green-800/90 to-emerald-900/90 text-white mx-auto shadow-xl border border-green-400/20 backdrop-blur-sm";
+      }
       return "bg-gradient-to-br from-red-800/90 to-red-900/90 text-white mx-auto shadow-xl border border-red-400/20 backdrop-blur-sm";
     }
          
@@ -80,6 +84,10 @@ const Message = ({ message, index }) => {
     }
     
     if (isSystem) {
+      const parsed = JSON.parse(message.text);
+      if (parsed.status === "success") {
+        return "bg-gradient-to-br from-green-400 to-emerald-500 -left-1 shadow-lg border border-green-300/20";
+      }
       return "bg-gradient-to-br from-red-400 to-red-500 -left-1 shadow-lg border border-red-300/20";
     }
          
@@ -158,6 +166,7 @@ const Message = ({ message, index }) => {
           messageType={messageType !== "default" ? messageType : null}
           messageStage={messageStage}
           toolName={toolName}
+          message={message}
         />
 
         <div className={`${isUser ? "font-medium" : ""} leading-relaxed`}>

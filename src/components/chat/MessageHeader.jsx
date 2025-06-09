@@ -1,6 +1,6 @@
 import React from "react";
 
-const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName }) => {
+const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName, message }) => {
   if (isUser) {
     return (
       <div className="flex items-center mb-2 pb-2 border-b border-emerald-300/30">
@@ -13,14 +13,29 @@ const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName }
   }
 
   if (isSystem) {
+    let isSuccess = false;
+    try {
+      const parsed = JSON.parse(message.text);
+      isSuccess = parsed.status === "success";
+    } catch (error) {
+      // If parsing fails, treat as error message
+      isSuccess = false;
+    }
+
     return (
-      <div className="flex items-center mb-2 pb-2 border-b border-red-300/30">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-400 to-red-500 flex items-center justify-center mr-3 shadow-lg">
-          <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-            <path stroke="white" strokeWidth="2.5" d="M12 9v6m0-9v.01M12 21a9 9 0 100-18 9 9 0 000 18z"/>
-          </svg>
+      <div className={`flex items-center mb-2 pb-2 border-b ${isSuccess ? "border-green-300/30" : "border-red-300/30"}`}>
+        <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${isSuccess ? "from-green-400 to-emerald-500" : "from-red-400 to-red-500"} flex items-center justify-center mr-3 shadow-lg`}>
+          {isSuccess ? (
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <path stroke="white" strokeWidth="2.5" d="M5 13l4 4L19 7"/>
+            </svg>
+          ) : (
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+              <path stroke="white" strokeWidth="2.5" d="M12 9v6m0-9v.01M12 21a9 9 0 100-18 9 9 0 000 18z"/>
+            </svg>
+          )}
         </div>
-        <span className="text-xs text-red-100 font-semibold tracking-wide">SYSTEM</span>
+        <span className={`text-xs ${isSuccess ? "text-green-100" : "text-red-100"} font-semibold tracking-wide`}>SYSTEM</span>
       </div>
     );
   }
