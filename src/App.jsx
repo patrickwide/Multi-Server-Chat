@@ -44,36 +44,89 @@ function App() {
     setConnectionStatus("connecting");
     setLog([]); // Clear chat log when switching servers
     
-    const ws = new WebSocket(serverUrl);
-    wsRef.current = ws;
+    try {
+      const ws = new WebSocket(serverUrl);
+      wsRef.current = ws;
 
-    ws.onopen = () => {
-      setIsConnected(true);
-      setConnectionStatus("connected");
-    };
+      ws.onopen = () => {
+        setIsConnected(true);
+        setConnectionStatus("connected");
+        // Add welcome message to log
+        setLog(prev => [...prev, { 
+          type: "ai", 
+          text: JSON.stringify({
+            status: "success",
+            type: "welcome",
+            message: "Connected to AI server. How can I help you today?"
+          })
+        }]);
+      };
 
-    ws.onmessage = (event) => {
-      setIsTyping(false);
-      setLog((prev) => [...prev, { type: "ai", text: event.data }]);
-    };
+      ws.onmessage = (event) => {
+        setIsTyping(false);
+        try {
+          // Try to parse the message as JSON
+          const message = JSON.parse(event.data);
+          setLog(prev => [...prev, { type: "ai", text: event.data }]);
+        } catch (error) {
+          // If not JSON, treat as plain text
+          setLog(prev => [...prev, { type: "ai", text: event.data }]);
+        }
+      };
 
-    ws.onclose = () => {
-      setIsConnected(false);
-      setConnectionStatus("disconnected");
-      
-      // Auto-reconnect only if we have an active server
-      if (activeServerId) {
-        reconnectTimeoutRef.current = setTimeout(() => {
-          setConnectionStatus("connecting");
-          connectWebSocket(serverUrl);
-        }, RECONNECT_INTERVAL);
-      }
-    };
+      ws.onclose = (event) => {
+        setIsConnected(false);
+        setConnectionStatus("disconnected");
+        
+        // Add disconnect message to log
+        setLog(prev => [...prev, { 
+          type: "ai", 
+          text: JSON.stringify({
+            status: "error",
+            type: "disconnect",
+            message: "Connection to server lost. Attempting to reconnect..."
+          })
+        }]);
+        
+        // Auto-reconnect only if we have an active server
+        if (activeServerId) {
+          reconnectTimeoutRef.current = setTimeout(() => {
+            setConnectionStatus("connecting");
+            connectWebSocket(serverUrl);
+          }, RECONNECT_INTERVAL);
+        }
+      };
 
-    ws.onerror = () => {
-      setIsConnected(false);
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        setIsConnected(false);
+        setConnectionStatus("error");
+        
+        // Add error message to log
+        setLog(prev => [...prev, { 
+          type: "ai", 
+          text: JSON.stringify({
+            status: "error",
+            type: "connection_error",
+            message: "Failed to connect to server. Please check if the server is running and try again."
+          })
+        }]);
+      };
+    } catch (error) {
+      console.error('Failed to create WebSocket:', error);
       setConnectionStatus("error");
-    };
+      setIsConnected(false);
+      
+      // Add error message to log
+      setLog(prev => [...prev, { 
+        type: "ai", 
+        text: JSON.stringify({
+          status: "error",
+          type: "connection_error",
+          message: "Failed to establish WebSocket connection. Please check the server URL and try again."
+        })
+      }]);
+    }
   };
 
   const handleAddServer = ({ name, url }) => {

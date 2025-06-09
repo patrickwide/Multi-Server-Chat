@@ -24,7 +24,7 @@ const Header = ({ isConnected, connectionStatus, activeServer, onOpenServerManag
     <div className="bg-gray-800 border-b border-gray-700 p-4">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">Multi-Server Chat</h1>
+          <h1 className="text-2xl font-bold text-white">Multi-Server Chat!</h1>
           {activeServer && (
             <div className="flex items-center mt-1">
               <span className="text-gray-300 text-sm mr-2">Connected to:</span>
