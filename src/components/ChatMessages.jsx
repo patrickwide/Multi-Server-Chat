@@ -1,6 +1,8 @@
 import React from "react";
 import { Globe } from "lucide-react";
 import Message from "./chat/Message";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 const ChatMessages = ({ log, isTyping, messagesEndRef, connectionStatus, activeServer }) => {
   const renderTypingIndicator = () => (
@@ -84,17 +86,71 @@ const ChatMessages = ({ log, isTyping, messagesEndRef, connectionStatus, activeS
         </div>
       );
     }
+    
+    return null;
+  };
 
-    if (connectionStatus === "connected" && log.length === 0) {
+  // Group messages by conversation
+  const groupMessagesByConversation = (messages) => {
+    const conversations = new Map();
+    
+    messages.forEach(message => {
+      if (!message.conversationId) return;
+      
+      if (!conversations.has(message.conversationId)) {
+        conversations.set(message.conversationId, []);
+      }
+      conversations.get(message.conversationId).push(message);
+    });
+
+    return Array.from(conversations.values());
+  };
+
+  // Group tool-related messages
+  const groupToolMessages = (messages) => {
+    const toolGroups = new Map();
+    
+    messages.forEach(message => {
+      try {
+        const parsed = JSON.parse(message.text);
+        if (parsed.tool_call_id) {
+          if (!toolGroups.has(parsed.tool_call_id)) {
+            toolGroups.set(parsed.tool_call_id, []);
+          }
+          toolGroups.get(parsed.tool_call_id).push(message);
+        }
+      } catch (error) {
+        // Not a tool message
+      }
+    });
+
+    return toolGroups;
+  };
+
+  const renderConversation = (conversation) => {
+    const toolGroups = groupToolMessages(conversation);
+    
+    return conversation.map((message, index) => {
+      const isToolMessage = message.tool_correlation?.tool_call_id;
+      const toolGroup = isToolMessage ? toolGroups.get(message.tool_correlation.tool_call_id) : null;
+      
       return (
-        <div className="text-center text-gray-400 py-8">
-          <p>Connected to {activeServer.name}</p>
-          <p className="text-sm">Start chatting by typing a message below</p>
+        <div key={message.id || index} className="relative">
+          {/* Tool execution chain connection lines */}
+          {toolGroup && toolGroup.length > 1 && (
+            <div className="absolute left-4 -top-3 w-px bg-gradient-to-b from-transparent via-amber-500/30 to-cyan-500/30" 
+                 style={{ height: `${(toolGroup.length) * 100}%` }} />
+          )}
+          
+          <Message 
+            message={message} 
+            index={index}
+            toolGroup={toolGroup}
+            isLastInToolGroup={toolGroup ? message === toolGroup[toolGroup.length - 1] : false}
+          />
         </div>
       );
-    }
-
-    return null;
+    });
   };
 
   return (
@@ -103,8 +159,10 @@ const ChatMessages = ({ log, isTyping, messagesEndRef, connectionStatus, activeS
         renderEmptyState()
       ) : (
         <>
-          {log.map((message, index) => (
-            <Message key={index} message={message} index={index} />
+          {groupMessagesByConversation(log).map((conversation, i) => (
+            <div key={i} className="mb-8 last:mb-0">
+              {renderConversation(conversation)}
+            </div>
           ))}
           {isTyping && renderTypingIndicator()}
         </>

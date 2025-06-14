@@ -1,5 +1,5 @@
 import React from "react";
-import { Copy, Check, FileText } from "lucide-react";
+import { Copy, Check, FileText, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 
 const ToolInfo = ({ toolInfo }) => {
   const [copied, setCopied] = React.useState(false);
@@ -18,14 +18,12 @@ const ToolInfo = ({ toolInfo }) => {
     }
   };
 
-  // Helper to determine if result is lengthy
   const getResultString = () => {
     if (!toolInfo.response) return "";
     if (typeof toolInfo.response === 'string') return toolInfo.response;
     return JSON.stringify(toolInfo.response, null, 2);
   };
 
-  // Helper to determine if args is lengthy
   const getArgsString = () => {
     if (!toolInfo.args) return "";
     return JSON.stringify(toolInfo.args, null, 2);
@@ -39,10 +37,74 @@ const ToolInfo = ({ toolInfo }) => {
   const argsLines = argsString.split('\n').length;
   const isLongArgs = argsLines > 8 || argsString.length > 500;
 
+  const ProgressBar = () => {
+    const duration = toolInfo.executionTime || 0;
+    const status = toolInfo.status || 'running';
+
+    return (
+      <div className="relative h-1 bg-gray-700/50 rounded-full overflow-hidden mt-2">
+        <div 
+          className={`absolute inset-0 ${
+            status === 'error' 
+              ? 'bg-red-500'
+              : status === 'success'
+                ? 'bg-emerald-500'
+                : 'bg-amber-500 animate-pulse'
+          }`}
+          style={{
+            width: status === 'running' ? '60%' : '100%',
+          }}
+        />
+      </div>
+    );
+  };
+
+  const ExecutionStatus = () => (
+    <div className="flex items-center justify-between px-4 py-2 border-t border-white/10 mt-2">
+      <div className="flex items-center space-x-2">
+        {toolInfo.status === 'error' ? (
+          <AlertCircle size={14} className="text-red-400" />
+        ) : toolInfo.status === 'success' ? (
+          <CheckCircle2 size={14} className="text-emerald-400" />
+        ) : (
+          <Clock size={14} className="text-amber-400 animate-spin" />
+        )}
+        <span className={`text-xs font-medium ${
+          toolInfo.status === 'error' 
+            ? 'text-red-400' 
+            : toolInfo.status === 'success'
+              ? 'text-emerald-400'
+              : 'text-amber-400'
+        }`}>
+          {toolInfo.status === 'error' 
+            ? 'Execution Failed' 
+            : toolInfo.status === 'success'
+              ? 'Execution Complete'
+              : 'Executing...'}
+        </span>
+      </div>
+      {toolInfo.executionTime && (
+        <span className="text-xs text-gray-400">
+          Execution time: {toolInfo.executionTime}ms
+        </span>
+      )}
+    </div>
+  );
+
   return (
-    <div className="mt-4">
+    <div className="mt-4 space-y-3">
+      {toolInfo.toolCallId && (
+        <div className="px-4 py-2 bg-gray-800/50 rounded-lg border border-gray-700/50">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-400">Tool Call ID:</span>
+            <span className="text-xs text-gray-300 font-mono">{toolInfo.toolCallId}</span>
+          </div>
+          <ProgressBar />
+        </div>
+      )}
+      
       {toolInfo.args && (
-        <div className="mb-3 bg-white/10 rounded-xl shadow border border-white/10 overflow-hidden">
+        <div className="bg-white/10 rounded-xl shadow border border-white/10 overflow-hidden">
           <div className="flex items-center px-4 py-2 border-b border-white/10">
             <FileText size={16} className="text-cyan-300 mr-2" />
             <span className="text-xs text-cyan-200 font-semibold tracking-wide uppercase">Arguments</span>
@@ -61,7 +123,7 @@ const ToolInfo = ({ toolInfo }) => {
             </pre>
             {isLongArgs && (
               <button
-                className="absolute right-4 bottom-2 z-10 text-xs text-cyan-200 bg-black/30 hover:bg-black/60 px-2 py-1 mb-1.5 rounded shadow pointer-events-auto"
+                className="absolute right-4 bottom-2 z-10 text-xs text-cyan-200 bg-black/30 hover:bg-black/60 px-2 py-1 mb-2.5 rounded shadow pointer-events-auto"
                 onClick={() => setExpandedArgs(e => !e)}
               >
                 {expandedArgs ? 'Show less' : 'Show more'}
@@ -70,8 +132,9 @@ const ToolInfo = ({ toolInfo }) => {
           </div>
         </div>
       )}
+
       {toolInfo.response && (
-        <div className="mb-3 bg-white/10 rounded-xl shadow border border-white/10 overflow-hidden">
+        <div className="bg-white/10 rounded-xl shadow border border-white/10 overflow-hidden">
           <div className="flex items-center px-4 py-2 border-b border-white/10">
             <FileText size={16} className="text-green-300 mr-2" />
             <span className="text-xs text-green-200 font-semibold tracking-wide uppercase">Result</span>
@@ -82,7 +145,7 @@ const ToolInfo = ({ toolInfo }) => {
             </pre>
             {isLongResult && (
               <button
-                className="absolute right-4 bottom-2 z-10 text-xs text-green-200 bg-black/30 hover:bg-black/60 px-2 py-1 mb-1.5 rounded shadow pointer-events-auto"
+                className="absolute right-4 bottom-2 z-10 text-xs text-green-200 bg-black/30 hover:bg-black/60 px-2 py-1 mb-2.5 rounded shadow pointer-events-auto"
                 onClick={() => setExpandedResult(e => !e)}
               >
                 {expandedResult ? 'Show less' : 'Show more'}
@@ -91,11 +154,8 @@ const ToolInfo = ({ toolInfo }) => {
           </div>
         </div>
       )}
-      {toolInfo.executionTime && (
-        <div className="px-4 py-1 text-xs text-gray-400">
-          Execution time: {toolInfo.executionTime}ms
-        </div>
-      )}
+
+      <ExecutionStatus />
     </div>
   );
 };

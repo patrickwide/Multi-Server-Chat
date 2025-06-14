@@ -9,11 +9,12 @@ const Message = ({ message, index }) => {
   const isAI = message.type === "ai";
   const isSystem = message.type === "system";
   
-  // Parse the message to determine its type and stage
+  // Parse the message and tool info
   let messageType = "default";
   let messageStage = null;
   let toolInfo = null;
   let toolName = null;
+  let toolCorrelation = message.tool_correlation;
   
   if (isAI || isSystem) {
     try {
@@ -28,7 +29,9 @@ const Message = ({ message, index }) => {
           args: parsed.arguments || parsed.args,
           response: parsed.response,
           executionInfo: parsed.execution_info,
-          executionTime: parsed.execution_time_ms
+          executionTime: parsed.execution_time_ms,
+          toolCallId: parsed.tool_call_id,
+          status: parsed.status
         };
       }
     } catch (error) {
@@ -37,6 +40,7 @@ const Message = ({ message, index }) => {
   }
 
   const [copied, setCopied] = React.useState(false);
+  const [showMetadata, setShowMetadata] = React.useState(false);
 
   const handleCopy = async (text) => {
     try {
@@ -47,6 +51,37 @@ const Message = ({ message, index }) => {
       // ignore
     }
   };
+
+  // Format the timestamp
+  const formatTimestamp = (isoString) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    return date.toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      second: '2-digit',
+      fractionalSecondDigits: 3 
+    });
+  };
+
+  const MessageMetadata = () => (
+    <div className="mt-2 pt-2 border-t border-gray-700/30 text-xs text-gray-400 space-y-1">
+      <div className="flex justify-between">
+        <span>Message ID: {message.id}</span>
+        <span>Sequence: {message.sequence}</span>
+      </div>
+      <div className="flex justify-between">
+        <span>Parent ID: {message.parentId || "none"}</span>
+        <span>Conversation: {message.conversationId}</span>
+      </div>
+      {toolCorrelation && (
+        <div className="flex justify-between text-amber-300/70">
+          <span>Tool ID: {toolCorrelation.tool_call_id}</span>
+          <span>Time: {toolCorrelation.execution_time_ms}ms</span>
+        </div>
+      )}
+    </div>
+  );
 
   const getMessageStyles = () => {
     if (isUser) {
@@ -140,21 +175,51 @@ const Message = ({ message, index }) => {
 
   return (
     <div
-      className={`flex ${isUser ? "justify-end" : isSystem ? "justify-center" : "justify-start"} mb-6 group`}
+      className={`flex ${isUser ? "justify-end" : isSystem ? "justify-center" : "justify-start"} mb-6 group relative`}
     >
+      {/* Add connection line to parent message if it exists */}
+      {message.parentId && !isUser && (
+        <div className="absolute left-4 -top-6 w-px h-6 bg-gradient-to-b from-transparent to-gray-500/30" />
+      )}
+      
       <div
         className={`relative min-w-[280px] max-w-2xl lg:max-w-4xl xl:max-w-5xl px-6 py-4 rounded-md shadow-lg backdrop-blur-sm transition-all duration-200 hover:shadow-xl ${getMessageStyles()}`}
       >
-        {/* Copy button for user/agent (not tool_call/tool_result) */}
+        {/* Copy button */}
         {(!isAI || (isAI && messageStage !== "tool_call" && messageStage !== "tool_result")) && (
-          <button
-            onClick={() => handleCopy(extractMessageContent(message))}
-            className={`absolute top-2 right-2 z-10 p-1 rounded-full bg-black/10 hover:bg-black/30 transition-colors ${isUser ? "text-emerald-300 hover:text-white" : isSystem ? "text-red-300 hover:text-white" : "text-blue-300 hover:text-white"}`}
-            title="Copy message"
-          >
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-          </button>
+          <div className="absolute top-2 right-2 z-10 flex items-center gap-2">
+            <button
+              onClick={() => setShowMetadata(prev => !prev)}
+              className="p-1 rounded-full bg-black/10 hover:bg-black/30 transition-colors text-gray-300 hover:text-white"
+              title="Toggle metadata"
+            >
+              {showMetadata ? "−" : "⋯"}
+            </button>
+            <button
+              onClick={() => handleCopy(extractMessageContent(message))}
+              className={`p-1 rounded-full bg-black/10 hover:bg-black/30 transition-colors ${
+                isUser 
+                  ? "text-emerald-300 hover:text-white" 
+                  : isSystem 
+                    ? (() => {
+                        try {
+                          const parsed = JSON.parse(message.text);
+                          return parsed.status === "success" 
+                            ? "text-green-300 hover:text-white" 
+                            : "text-red-300 hover:text-white";
+                        } catch (error) {
+                          return "text-red-300 hover:text-white";
+                        }
+                      })()
+                    : "text-blue-300 hover:text-white"
+              }`}
+              title="Copy message"
+            >
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+            </button>
+          </div>
         )}
+
         {/* Message tail */}
         <div
           className={`absolute top-4 w-3 h-3 transform rotate-45 ${getTailStyles()}`}
@@ -167,26 +232,22 @@ const Message = ({ message, index }) => {
           messageStage={messageStage}
           toolName={toolName}
           message={message}
+          toolInfo={toolInfo}
         />
 
         <div className={`${isUser ? "font-medium" : ""} leading-relaxed`}>
-          {isAI ? (
-            <>
-              <MarkdownRenderer content={extractMessageContent(message)} />
-              <ToolInfo toolInfo={toolInfo} />
-            </>
-          ) : (
-            extractMessageContent(message)
-          )}
+          <MarkdownRenderer content={extractMessageContent(message)} />
+          {isAI && <ToolInfo toolInfo={toolInfo} />}
+          {showMetadata && <MessageMetadata />}
         </div>
 
         {/* Timestamp */}
         <div className={`text-xs mt-2 opacity-60 ${isUser ? "text-right" : "text-left"}`}>
-          {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {formatTimestamp(message.timestamp)}
         </div>
       </div>
     </div>
   );
 };
 
-export default Message; 
+export default Message;

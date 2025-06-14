@@ -1,13 +1,18 @@
 import React from "react";
 
-const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName, message }) => {
+const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName, message, toolInfo }) => {
   if (isUser) {
     return (
       <div className="flex items-center mb-2 pb-2 border-b border-emerald-300/30">
         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mr-3 shadow-lg">
           <div className="w-3 h-3 bg-white rounded-full"></div>
         </div>
-        <span className="text-xs text-emerald-100 font-semibold tracking-wide">YOU</span>
+        <div className="flex flex-col">
+          <span className="text-xs text-emerald-100 font-semibold tracking-wide">YOU</span>
+          {message.id && (
+            <span className="text-[10px] text-emerald-300/50">{message.id.split('-')[0]}</span>
+          )}
+        </div>
       </div>
     );
   }
@@ -18,7 +23,6 @@ const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName, 
       const parsed = JSON.parse(message.text);
       isSuccess = parsed.status === "success";
     } catch (error) {
-      // If parsing fails, treat as error message
       isSuccess = false;
     }
 
@@ -35,7 +39,16 @@ const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName, 
             </svg>
           )}
         </div>
-        <span className={`text-xs ${isSuccess ? "text-green-100" : "text-red-100"} font-semibold tracking-wide`}>SYSTEM</span>
+        <div className="flex flex-col">
+          <span className={`text-xs ${isSuccess ? "text-green-100" : "text-red-100"} font-semibold tracking-wide`}>
+            SYSTEM
+          </span>
+          {message.id && (
+            <span className={`text-[10px] ${isSuccess ? "text-green-300/50" : "text-red-300/50"}`}>
+              {message.id.split('-')[0]}
+            </span>
+          )}
+        </div>
       </div>
     );
   }
@@ -55,30 +68,41 @@ const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName, 
   };
 
   const getIconAndText = () => {
+    const executionTime = toolInfo?.executionTime;
+    const status = toolInfo?.status;
+
     switch (messageStage) {
       case "tool_call":
         return {
           icon: (
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mr-3 shadow-lg">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                <path stroke="white" strokeWidth="2.5" d="M12 5v14m7-7H5"/>
+              <svg className="animate-spin" width="14" height="14" fill="none" viewBox="0 0 24 24">
+                <path stroke="white" strokeWidth="2.5" d="M12 6v2m0 8v2M6 12h2m8 0h2m-11 0a5 5 0 1110 0 5 5 0 01-10 0z"/>
               </svg>
             </div>
           ),
           text: "TOOL CALL",
-          textColor: "text-amber-200"
+          textColor: "text-amber-200",
+          subText: toolInfo?.toolCallId ? `ID: ${toolInfo.toolCallId}` : undefined
         };
       case "tool_result":
         return {
           icon: (
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-teal-500 flex items-center justify-center mr-3 shadow-lg">
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
-                <path stroke="white" strokeWidth="2.5" d="M5 13l4 4L19 7"/>
-              </svg>
+              {status === "error" ? (
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+                  <path stroke="white" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              ) : (
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24">
+                  <path stroke="white" strokeWidth="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+              )}
             </div>
           ),
           text: "TOOL RESULT",
-          textColor: "text-cyan-200"
+          textColor: status === "error" ? "text-red-200" : "text-cyan-200",
+          subText: executionTime ? `${executionTime}ms` : undefined
         };
       default:
         return {
@@ -89,19 +113,27 @@ const MessageHeader = ({ isUser, isSystem, messageType, messageStage, toolName, 
           ),
           text: messageType === "welcome" ? "WELCOME" : 
                 messageType === "goodbye" ? "GOODBYE" : "AI AGENT",
-          textColor: "text-gray-200"
+          textColor: "text-gray-200",
+          subText: message.id ? message.id.split('-')[0] : undefined
         };
     }
   };
 
-  const { icon, text, textColor } = getIconAndText();
+  const { icon, text, textColor, subText } = getIconAndText();
 
   return (
     <div className={getHeaderStyles()}>
       {icon}
-      <span className={`text-xs font-semibold tracking-wide ${textColor}`}>
-        {text}
-      </span>
+      <div className="flex flex-col">
+        <span className={`text-xs font-semibold tracking-wide ${textColor}`}>
+          {text}
+        </span>
+        {subText && (
+          <span className="text-[10px] text-gray-400">
+            {subText}
+          </span>
+        )}
+      </div>
       {(messageStage === "tool_call" || messageStage === "tool_result") && toolName && (
         <>
           <span className="mx-2 text-white/40">•</span>

@@ -16,7 +16,12 @@ function App() {
     { id: 1, url: "ws://localhost:8000/ws/ai" }
   ]);
   const [activeServerId, setActiveServerId] = useState(null);
-  
+
+  // Add new state for message correlation
+  const [conversations, setConversations] = useState(new Map());
+  const [currentConversationId, setCurrentConversationId] = useState(null);
+  const [messageSequence, setMessageSequence] = useState(0);
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const wsRef = useRef(null);
@@ -27,6 +32,37 @@ function App() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const generateId = () => `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  const addToConversation = (message) => {
+    const conversationId = currentConversationId || generateId();
+    if (!currentConversationId) {
+      setCurrentConversationId(conversationId);
+    }
+
+    const messageId = generateId();
+    const enrichedMessage = {
+      ...message,
+      id: messageId,
+      conversationId,
+      sequence: messageSequence,
+      timestamp: new Date().toISOString(),
+      parentId: message.type === "ai" ? log[log.length - 1]?.id : null
+    };
+
+    setMessageSequence(prev => prev + 1);
+    setConversations(prev => {
+      const updated = new Map(prev);
+      if (!updated.has(conversationId)) {
+        updated.set(conversationId, []);
+      }
+      updated.get(conversationId).push(enrichedMessage);
+      return updated;
+    });
+
+    return enrichedMessage;
   };
 
   const connectWebSocket = (serverUrl) => {
@@ -43,7 +79,7 @@ function App() {
 
     setConnectionStatus("connecting");
     setLog([]); // Clear chat log when switching servers
-    
+
     try {
       const ws = new WebSocket(serverUrl);
       wsRef.current = ws;
@@ -52,42 +88,64 @@ function App() {
         setIsConnected(true);
         setConnectionStatus("connected");
         // Add welcome message to log
-        setLog(prev => [...prev, { 
-          type: "system", 
+        setLog(prev => [...prev, {
+          type: "system",
           text: JSON.stringify({
             status: "success",
             type: "welcome",
-            message: "Connected to AI server. How can I help you today?"
+            message: "Connected to AI server"
           })
         }]);
       };
 
-      ws.onmessage = (event) => {
+      const handleServerMessage = (event) => {
         setIsTyping(false);
         try {
-          // Try to parse the message as JSON
-          const message = JSON.parse(event.data);
-          setLog(prev => [...prev, { type: "ai", text: event.data }]);
+          const jsonData = JSON.parse(event.data);
+          console.log('Received message from server:', '\n', JSON.stringify(jsonData, null, 2));
+
+          // Enrich the message with correlation IDs
+          const aiMessage = addToConversation({
+            type: "ai",
+            text: event.data,
+            tool_correlation: jsonData.tool_call_id ? {
+              tool_call_id: jsonData.tool_call_id,
+              execution_time_ms: jsonData.execution_time_ms,
+              stage: jsonData.stage
+            } : null
+          });
+
+          setLog(prev => [...prev, aiMessage]);
         } catch (error) {
-          // If not JSON, treat as plain text
-          setLog(prev => [...prev, { type: "ai", text: event.data }]);
+          console.error('Failed to parse server message:', error);
+          const errorMessage = addToConversation({
+            type: "system",
+            text: JSON.stringify({
+              status: "error",
+              type: "parse_error",
+              message: "Failed to parse server message"
+            })
+          });
+          setLog(prev => [...prev, errorMessage]);
         }
       };
+
+      ws.onmessage = handleServerMessage;
 
       ws.onclose = (event) => {
         setIsConnected(false);
         setConnectionStatus("disconnected");
-        
+
         // Add disconnect message to log
-        setLog(prev => [...prev, { 
-          type: "system", 
+        setLog(prev => [...prev, {
+          type: "system",
           text: JSON.stringify({
             status: "error",
             type: "disconnect",
             message: "Connection to server lost. Attempting to reconnect..."
           })
         }]);
-        
+
         // Auto-reconnect only if we have an active server
         if (activeServerId) {
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -101,10 +159,10 @@ function App() {
         console.error('WebSocket error:', error);
         setIsConnected(false);
         setConnectionStatus("error");
-        
+
         // Add error message to log
-        setLog(prev => [...prev, { 
-          type: "system", 
+        setLog(prev => [...prev, {
+          type: "system",
           text: JSON.stringify({
             status: "error",
             type: "connection_error",
@@ -116,10 +174,10 @@ function App() {
       console.error('Failed to create WebSocket:', error);
       setConnectionStatus("error");
       setIsConnected(false);
-      
+
       // Add error message to log
-      setLog(prev => [...prev, { 
-        type: "system", 
+      setLog(prev => [...prev, {
+        type: "system",
         text: JSON.stringify({
           status: "error",
           type: "connection_error",
@@ -174,9 +232,17 @@ function App() {
 
   const sendMsg = () => {
     if (!msg.trim() || !isConnected || !wsRef.current) return;
-    
-    setLog((prev) => [...prev, { type: "user", text: msg }]);
-    wsRef.current.send(msg);
+
+    const userMessage = addToConversation({ type: "user", text: msg });
+    setLog((prev) => [...prev, userMessage]);
+
+    wsRef.current.send(JSON.stringify({
+      text: msg,
+      message_id: userMessage.id,
+      conversation_id: userMessage.conversationId,
+      sequence: userMessage.sequence
+    }));
+
     setMsg("");
     setIsTyping(true);
     inputRef.current?.focus();
@@ -184,14 +250,14 @@ function App() {
 
   return (
     <div className="h-screen flex flex-col bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 overflow-hidden">
-      <Header 
-        isConnected={isConnected} 
+      <Header
+        isConnected={isConnected}
         connectionStatus={connectionStatus}
         activeServer={activeServer}
         onOpenServerManager={() => setShowServerManager(true)}
       />
 
-      <ChatMessages 
+      <ChatMessages
         log={log}
         isTyping={isTyping}
         messagesEndRef={messagesEndRef}
@@ -199,7 +265,7 @@ function App() {
         activeServer={activeServer}
       />
 
-      <MessageInput 
+      <MessageInput
         msg={msg}
         setMsg={setMsg}
         sendMsg={sendMsg}
